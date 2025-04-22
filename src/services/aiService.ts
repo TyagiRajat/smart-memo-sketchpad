@@ -1,54 +1,79 @@
-
 import { toast } from 'sonner';
-
-// This is a simulated AI service
-// In a real app, this would connect to an AI API like DeepSeek
-
-// Sample summaries for testing
-const sampleSummaries: Record<string, string> = {
-  'short': 'This is a brief summary of a short document.',
-  'medium': 'This summary covers the main points of your document including key concepts and important details.',
-  'long': 'This comprehensive summary provides an overview of the entire document, including major themes, key arguments, supporting evidence, and important conclusions drawn by the author.',
-};
 
 export async function summarizeText(text: string): Promise<string> {
   // Simulate API call delay
   await new Promise(resolve => setTimeout(resolve, 1500));
   
   try {
-    // Simulate different summaries based on text length
     if (!text || text.length < 10) {
       throw new Error('Text is too short to summarize');
     }
     
-    // Choose summary based on text length
-    let summary;
-    if (text.length < 100) {
-      summary = sampleSummaries.short;
-    } else if (text.length < 500) {
-      summary = sampleSummaries.medium;
-    } else {
-      summary = sampleSummaries.long;
+    // Instead of using generic templates, actually analyze the text content
+    // Extract key sentences and words from the text
+    const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 10);
+    const words = text.split(/\s+/).filter(w => w.length > 4);
+    
+    // Get important words (longer words or those that appear multiple times)
+    const wordFrequency: Record<string, number> = {};
+    words.forEach(word => {
+      const cleaned = word.toLowerCase().replace(/[^a-z0-9]/g, '');
+      if (cleaned.length > 4) {
+        wordFrequency[cleaned] = (wordFrequency[cleaned] || 0) + 1;
+      }
+    });
+    
+    // Sort words by frequency
+    const importantWords = Object.entries(wordFrequency)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 8)
+      .map(([word]) => word);
+    
+    // Extract key sentences (first, last, and those containing important words)
+    let keySentences = [];
+    if (sentences.length > 0) keySentences.push(sentences[0]);
+    if (sentences.length > 3) keySentences.push(sentences[Math.floor(sentences.length / 2)]);
+    if (sentences.length > 1) keySentences.push(sentences[sentences.length - 1]);
+    
+    // If we have few sentences, add any containing important words
+    if (keySentences.length < 3 && sentences.length > 0) {
+      for (const word of importantWords) {
+        const relevantSentence = sentences.find(s => 
+          !keySentences.includes(s) && s.toLowerCase().includes(word)
+        );
+        if (relevantSentence) {
+          keySentences.push(relevantSentence);
+          if (keySentences.length >= 3) break;
+        }
+      }
     }
     
-    // Add some randomization to make it seem more real
-    const randomStart = [
-      'This document discusses ',
-      'The text focuses on ',
-      'The content explores ',
-      'The note covers ',
-      'This writing examines ',
-    ];
+    // Remove duplicates and limit length
+    keySentences = [...new Set(keySentences)].slice(0, 3);
     
-    const randomWords = text.split(' ')
-      .filter(word => word.length > 4)
-      .sort(() => 0.5 - Math.random())
-      .slice(0, 5)
-      .join(', ');
+    // Build summary from key sentences and words
+    let summary = '';
     
-    const start = randomStart[Math.floor(Math.random() * randomStart.length)];
+    // Add introductory sentence based on content length
+    if (text.length > 1000) {
+      summary += "This comprehensive summary covers the key points from a detailed document. ";
+    } else if (text.length > 500) {
+      summary += "This summary highlights the main ideas from your note. ";
+    } else {
+      summary += "This brief summary captures the essence of your note. ";
+    }
     
-    return `${summary} ${start}topics including ${randomWords}.`;
+    // Add key sentences if available
+    if (keySentences.length > 0) {
+      summary += keySentences.join(' ') + ' ';
+    }
+    
+    // Add important keywords section
+    if (importantWords.length > 0) {
+      summary += `Key topics include: ${importantWords.join(', ')}.`;
+    }
+    
+    return summary.trim();
   } catch (error) {
     console.error('AI summarization error:', error);
     toast.error('Failed to generate summary. Please try again later.');
