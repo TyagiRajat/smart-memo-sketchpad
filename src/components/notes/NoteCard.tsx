@@ -53,6 +53,9 @@ export default function NoteCard({ note, onDelete, onToggleFavorite }: NoteCardP
       const referer = window.location.origin;
       const siteTitle = document.title || "AI Notes";
 
+      console.log("Making API request to OpenRouter with API key:", openRouterApiKey.slice(0, 3) + "...");
+      console.log("Content being summarized:", note.content.slice(0, 100) + "...");
+      
       const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
         headers: {
@@ -66,26 +69,38 @@ export default function NoteCard({ note, onDelete, onToggleFavorite }: NoteCardP
           messages: [
             {
               role: 'system', 
-              content: 'You are a helpful assistant that creates concise, clear summaries of text. Always respond in English only, regardless of the input language.'
+              content: 'You are a helpful assistant that creates concise, clear summaries of text. Always respond in English only with just the summary, no explanations or additional text.'
             },
             {
               role: 'user', 
-              content: `Please provide a concise summary in English of the following text:\n\n${note.content}`
+              content: `Summarize this text in 3-5 sentences:\n\n${note.content}`
             }
           ],
-          max_tokens: 180
+          max_tokens: 180,
+          temperature: 0.7
         })
       });
 
+      console.log("Response status:", response.status);
+      
       if (!response.ok) {
-        const errorData = await response.text();
-        throw new Error(errorData);
+        const errorText = await response.text();
+        console.error("API Error response:", errorText);
+        throw new Error(`API error: ${response.status} ${errorText}`);
       }
 
       const data = await response.json();
-      // OpenRouter conforms to OpenAI schema
-      const generatedSummary = data.choices?.[0]?.message?.content?.trim() || 'No summary generated.';
+      console.log("API response data:", data);
       
+      // OpenRouter conforms to OpenAI schema
+      const generatedSummary = data.choices?.[0]?.message?.content?.trim();
+      
+      if (!generatedSummary) {
+        console.error("No summary content in API response");
+        throw new Error("No summary content in response");
+      }
+      
+      console.log("Generated summary:", generatedSummary);
       setSummary(generatedSummary);
       toast.success('Summary generated successfully!');
     } catch (error: any) {
@@ -99,11 +114,16 @@ export default function NoteCard({ note, onDelete, onToggleFavorite }: NoteCardP
 
   // Save summary as a new note
   const handleSaveInTab = async () => {
+    if (!summary) {
+      toast.error("No summary to save");
+      return;
+    }
+    
     setSavingSummary(true);
     try {
       await createNote(note.user_id, {
         title: `AI Summary of "${note.title}"`,
-        content: summary || '',
+        content: summary,
         tags: [...(note.tags || []), "ai-summary"],
       });
       toast.success('AI summary saved as new note');
@@ -195,7 +215,7 @@ export default function NoteCard({ note, onDelete, onToggleFavorite }: NoteCardP
             </Tooltip>
           </TooltipProvider>
           
-          {/* Two-Step AI Summary Dialog */}
+          {/* AI Summary Dialog */}
           <Dialog open={summaryDialogOpen} onOpenChange={(open) => {
             setSummaryDialogOpen(open);
             if (!open) setSummary(null);
@@ -250,7 +270,7 @@ export default function NoteCard({ note, onDelete, onToggleFavorite }: NoteCardP
                   </Button>
                 </div>
               ) : (
-                <ScrollArea className="max-h-[50vh]">
+                <ScrollArea className="max-h-[50vh] mt-4">
                   <div className="rounded bg-muted p-4">
                     <p className="text-sm whitespace-pre-line">{summary}</p>
                   </div>
