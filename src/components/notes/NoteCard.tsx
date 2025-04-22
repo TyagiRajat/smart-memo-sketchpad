@@ -1,15 +1,14 @@
-
 import { useState } from 'react';
 import { format } from 'date-fns';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Note, NoteFormData } from '@/types';
-import { Sparkles, Edit, Trash, Star, Save } from 'lucide-react';
+import { Sparkles, Edit, Trash, Star, Save, Key } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
-import { summarizeText } from '@/services/aiService';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import { createNote } from '@/services/noteService';
 
@@ -23,7 +22,8 @@ export default function NoteCard({ note, onDelete, onToggleFavorite }: NoteCardP
   const navigate = useNavigate();
   const [isHovered, setIsHovered] = useState(false);
 
-  // For AI Summary dialog
+  // OpenAI API key and summary states
+  const [openaiApiKey, setOpenaiApiKey] = useState('');
   const [summary, setSummary] = useState<string | null>(null);
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [summaryDialogOpen, setSummaryDialogOpen] = useState(false);
@@ -39,13 +39,50 @@ export default function NoteCard({ note, onDelete, onToggleFavorite }: NoteCardP
 
   // AI Summary generation and dialog logic
   const handleGenerateSummary = async () => {
+    // Validate API key
+    if (!openaiApiKey.trim()) {
+      toast.error("Please enter your OpenAI API key");
+      return;
+    }
+
     setSummaryLoading(true);
     try {
-      const sum = await summarizeText(note.content);
-      setSummary(sum);
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${openaiApiKey}`
+        },
+        body: JSON.stringify({
+          model: 'gpt-3.5-turbo',
+          messages: [
+            {
+              role: 'system', 
+              content: 'You are a helpful assistant that creates concise, clear summaries of text.'
+            },
+            {
+              role: 'user', 
+              content: `Please provide a concise summary of the following text:\n\n${note.content}`
+            }
+          ],
+          max_tokens: 150
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.text();
+        throw new Error(errorData);
+      }
+
+      const data = await response.json();
+      const generatedSummary = data.choices[0]?.message?.content?.trim() || 'No summary generated.';
+      
+      setSummary(generatedSummary);
       setSummaryDialogOpen(true);
-    } catch (e) {
-      toast.error("AI summary failed to generate");
+      toast.success('Summary generated successfully!');
+    } catch (error) {
+      console.error('OpenAI summary generation error:', error);
+      toast.error('Failed to generate summary. Check your API key and try again.');
     } finally {
       setSummaryLoading(false);
     }
@@ -62,8 +99,7 @@ export default function NoteCard({ note, onDelete, onToggleFavorite }: NoteCardP
       });
       toast.success('AI summary saved as new note');
       setSummaryDialogOpen(false);
-      // Optionally navigate to new note tab/page
-    } catch {
+    } catch (error) {
       toast.error("Failed to save summary as note");
     } finally {
       setSavingSummary(false);
@@ -116,6 +152,7 @@ export default function NoteCard({ note, onDelete, onToggleFavorite }: NoteCardP
           </div>
         )}
       </CardContent>
+      
       <CardFooter className="flex justify-between pt-2">
         <div className="flex space-x-1">
           <TooltipProvider>
@@ -148,75 +185,57 @@ export default function NoteCard({ note, onDelete, onToggleFavorite }: NoteCardP
               <TooltipContent>Delete note</TooltipContent>
             </Tooltip>
           </TooltipProvider>
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button 
-                  variant="outline"
-                  size="sm"
-                  className="gap-1"
-                  onClick={handleGenerateSummary}
-                  disabled={summaryLoading}
-                >
-                  <Sparkles className="h-4 w-4" />
-                  {summaryLoading ? "Summarizing..." : "Generate AI Summary"}
+          
+          <Dialog open={summaryDialogOpen} onOpenChange={setSummaryDialogOpen}>
+            <DialogTrigger asChild>
+              <Button 
+                variant="outline"
+                size="sm"
+                className="gap-1"
+                onClick={handleGenerateSummary}
+                disabled={summaryLoading}
+              >
+                <Sparkles className="h-4 w-4" />
+                {summaryLoading ? "Summarizing..." : "Generate AI Summary"}
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>OpenAI API Key Required</DialogTitle>
+                <DialogDescription>
+                  Enter your OpenAI API key to generate an AI summary
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <Input 
+                  type="password"
+                  placeholder="Enter OpenAI API Key"
+                  value={openaiApiKey}
+                  onChange={(e) => setOpenaiApiKey(e.target.value)}
+                  className="w-full"
+                />
+                
+                {summary && (
+                  <div className="mt-4">
+                    <p className="text-sm whitespace-pre-line">{summary}</p>
+                  </div>
+                )}
+              </div>
+              <DialogFooter className="gap-2">
+                {summary ? (
+                  <Button onClick={handleSaveInTab} disabled={savingSummary}>
+                    <Save className="h-4 w-4 mr-1" />
+                    {savingSummary ? "Saving..." : "Save in new tab"}
+                  </Button>
+                ) : null}
+                <Button variant="outline" onClick={() => setSummaryDialogOpen(false)}>
+                  Close
                 </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                Generate AI summary
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
-        {note.summary && (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  className="h-8 text-xs gap-1"
-                  onClick={() => navigate(`/notes/${note.id}`)}
-                >
-                  <Sparkles className="h-3 w-3" />
-                  AI Summary
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent className="max-w-xs">
-                <p className="text-xs">{note.summary}</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        )}
       </CardFooter>
-
-      {/* Generate AI Summary Dialog */}
-      <Dialog open={summaryDialogOpen} onOpenChange={setSummaryDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>AI Generated Summary</DialogTitle>
-            <DialogDescription>
-              The summary below is generated by AI for this note.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            {summaryLoading ? (
-              <div className="text-muted-foreground">Generating summary...</div>
-            ) : (
-              <p className="text-sm whitespace-pre-line">{summary}</p>
-            )}
-          </div>
-          <DialogFooter>
-            <Button onClick={handleSaveInTab} disabled={savingSummary || summaryLoading}>
-              <Save className="h-4 w-4 mr-1" />
-              {savingSummary ? "Saving..." : "Save in new tab"}
-            </Button>
-            <Button variant="outline" onClick={() => setSummaryDialogOpen(false)}>
-              Close
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </Card>
   );
 }
