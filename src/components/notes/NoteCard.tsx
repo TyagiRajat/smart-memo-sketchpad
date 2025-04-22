@@ -66,11 +66,11 @@ export default function NoteCard({ note, onDelete, onToggleFavorite }: NoteCardP
           messages: [
             {
               role: 'system', 
-              content: 'You are a helpful assistant that creates concise, clear summaries of text.'
+              content: 'You are a helpful assistant that creates concise, clear summaries of text. Always respond in English only, regardless of the input language.'
             },
             {
               role: 'user', 
-              content: `Please provide a concise summary of the following text:\n\n${note.content}`
+              content: `Please provide a concise summary in English of the following text:\n\n${note.content}`
             }
           ],
           max_tokens: 180
