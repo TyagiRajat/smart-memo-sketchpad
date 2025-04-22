@@ -10,7 +10,7 @@ const Index = () => {
   }
 
   // Redirect to dashboard if authenticated, otherwise to landing page
-  return isAuthenticated ? <Navigate to="/dashboard" replace /> : <Navigate to="/" replace />;
+  return isAuthenticated ? <Navigate to="/dashboard" replace /> : <Navigate to="/landing" replace />;
 };
 
 export default Index;

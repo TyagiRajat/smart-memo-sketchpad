@@ -32,7 +32,8 @@ import {
   Settings, 
   Star, 
   User, 
-  Menu 
+  Menu,
+  X 
 } from 'lucide-react';
 
 export default function AppLayout() {
