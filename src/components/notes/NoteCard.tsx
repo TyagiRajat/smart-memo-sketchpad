@@ -4,8 +4,8 @@ import { format } from 'date-fns';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Note, NoteFormData } from '@/types';
-import { Sparkles, Edit, Trash, Star, Save } from 'lucide-react';
+import { Note } from '@/types';
+import { Edit, Trash, Star, Save, Sparkles } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
@@ -24,14 +24,14 @@ export default function NoteCard({ note, onDelete, onToggleFavorite }: NoteCardP
   const navigate = useNavigate();
   const [isHovered, setIsHovered] = useState(false);
 
-  // OpenRouter API key and summary states
-  const [openRouterApiKey, setOpenRouterApiKey] = useState('');
+  // EuronAI API key and summary states
+  const [euronApiKey, setEuronApiKey] = useState('');
   const [summary, setSummary] = useState<string | null>(null);
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [summaryDialogOpen, setSummaryDialogOpen] = useState(false);
   const [savingSummary, setSavingSummary] = useState(false);
 
-  // Extract first 150 characters of content for preview
+  // Extract preview of content
   const contentPreview = note.content.length > 150 
     ? note.content.substring(0, 150) + '...' 
     : note.content;
@@ -39,73 +39,57 @@ export default function NoteCard({ note, onDelete, onToggleFavorite }: NoteCardP
   // Format date
   const formattedDate = format(new Date(note.updated_at), 'MMM d, yyyy');
 
-  // AI Summary generation and dialog logic with OpenRouter (DeepSeek V3 Base)
+  // Call Euron AI summarize endpoint
   const handleGenerateSummary = async () => {
-    // Validate API key
-    if (!openRouterApiKey.trim()) {
-      toast.error("Please enter your OpenRouter API key");
+    if (!euronApiKey.trim()) {
+      toast.error("Please enter your Euron API key");
       return;
     }
-
     setSummaryLoading(true);
+    setSummary(null);
     try {
-      // Compose site URL and title from window.location for headers
-      const referer = window.location.origin;
-      const siteTitle = document.title || "AI Notes";
-
-      console.log("Making API request to OpenRouter with API key:", openRouterApiKey.slice(0, 3) + "...");
-      console.log("Content being summarized:", note.content.slice(0, 100) + "...");
-      
-      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      const response = await fetch('https://api.euron.one/api/v1/euri/alpha/chat/completions', {
         method: 'POST',
         headers: {
-          "Authorization": `Bearer ${openRouterApiKey.trim()}`,
-          "HTTP-Referer": referer,
-          "X-Title": siteTitle,
-          "Content-Type": "application/json"
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${euronApiKey.trim()}`
         },
         body: JSON.stringify({
-          model: "deepseek/deepseek-v3-base:free",
           messages: [
             {
-              role: 'system', 
-              content: 'You are a helpful assistant that creates concise, clear summaries of text. Always respond in English only with just the summary, no explanations or additional text.'
-            },
-            {
-              role: 'user', 
-              content: `Summarize this text in 3-5 sentences:\n\n${note.content}`
+              role: "user",
+              content: `Summarize this text in 3-5 sentences. Respond ONLY with the summary:\n\n${note.content}`
             }
           ],
-          max_tokens: 180,
+          model: "gpt-4.1-mini",
+          max_tokens: 550,
           temperature: 0.7
         })
       });
 
-      console.log("Response status:", response.status);
-      
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error("API Error response:", errorText);
-        throw new Error(`API error: ${response.status} ${errorText}`);
+        const text = await response.text();
+        console.error("Euron API error:", text);
+        throw new Error(`API error: ${response.status} ${text}`);
       }
-
       const data = await response.json();
-      console.log("API response data:", data);
-      
-      // OpenRouter conforms to OpenAI schema
-      const generatedSummary = data.choices?.[0]?.message?.content?.trim();
-      
-      if (!generatedSummary) {
-        console.error("No summary content in API response");
-        throw new Error("No summary content in response");
+      // Try multiple possible output formats
+      let generatedSummary: string | null = null;
+      if (data.choices && data.choices[0]?.message?.content) {
+        generatedSummary = data.choices[0].message.content.trim();
+      } else if (data.summary) {
+        generatedSummary = data.summary.trim();
+      } else if (data.content) {
+        generatedSummary = data.content.trim();
       }
-      
-      console.log("Generated summary:", generatedSummary);
+      if (!generatedSummary) {
+        throw new Error("No summary received from Euron AI");
+      }
       setSummary(generatedSummary);
       toast.success('Summary generated successfully!');
-    } catch (error: any) {
-      console.error('OpenRouter summary generation error:', error);
-      toast.error('Failed to generate summary. Check your API key and try again.');
+    } catch (err: any) {
+      console.error('Euron summary error:', err);
+      toast.error("Failed to generate summary: " + (err?.message || "Unknown error"));
       setSummary(null);
     } finally {
       setSummaryLoading(false);
@@ -118,7 +102,6 @@ export default function NoteCard({ note, onDelete, onToggleFavorite }: NoteCardP
       toast.error("No summary to save");
       return;
     }
-    
     setSavingSummary(true);
     try {
       await createNote(note.user_id, {
@@ -181,7 +164,6 @@ export default function NoteCard({ note, onDelete, onToggleFavorite }: NoteCardP
           </div>
         )}
       </CardContent>
-      
       <CardFooter className="flex justify-between pt-2">
         <div className="flex space-x-1">
           <TooltipProvider>
@@ -214,8 +196,8 @@ export default function NoteCard({ note, onDelete, onToggleFavorite }: NoteCardP
               <TooltipContent>Delete note</TooltipContent>
             </Tooltip>
           </TooltipProvider>
-          
-          {/* AI Summary Dialog */}
+
+          {/* Euron AI Summary Dialog */}
           <Dialog open={summaryDialogOpen} onOpenChange={(open) => {
             setSummaryDialogOpen(open);
             if (!open) setSummary(null);
@@ -225,25 +207,23 @@ export default function NoteCard({ note, onDelete, onToggleFavorite }: NoteCardP
                 variant="outline"
                 size="sm"
                 className="gap-1"
-                onClick={() => {
-                  setSummaryDialogOpen(true);
-                }}
+                onClick={() => setSummaryDialogOpen(true)}
               >
                 <Sparkles className="h-4 w-4" />
                 Generate AI Summary
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-md">
+            <DialogContent className="sm:max-w-2xl max-w-[95vw] max-h-[80vh]">
               <DialogHeader>
                 <DialogTitle>
-                  {summary ? "AI Summary" : "OpenRouter API Key Required"}
+                  {summary ? "AI Summary" : "Euron API Key Required"}
                 </DialogTitle>
                 <DialogDescription>
                   {summary ? 
                     "Here's your AI-generated summary:" : 
                     <>
-                      Enter your free OpenRouter API key and click "Summarize" to generate an AI summary.<br />
-                      <span className="font-mono text-xs text-muted-foreground">Model: deepseek/deepseek-v3-base:free</span>
+                      Enter your free Euron AI API key and click "Summarize" to generate an AI summary.<br />
+                      <span className="font-mono text-xs text-muted-foreground">Model: gpt-4.1-mini</span>
                     </>
                   }
                 </DialogDescription>
@@ -253,9 +233,9 @@ export default function NoteCard({ note, onDelete, onToggleFavorite }: NoteCardP
                 <div className="space-y-4 py-2">
                   <Input 
                     type="password"
-                    placeholder="Enter OpenRouter API Key"
-                    value={openRouterApiKey}
-                    onChange={(e) => setOpenRouterApiKey(e.target.value)}
+                    placeholder="Enter Euron API Key"
+                    value={euronApiKey}
+                    onChange={(e) => setEuronApiKey(e.target.value)}
                     className="w-full"
                     autoFocus
                   />
@@ -270,9 +250,9 @@ export default function NoteCard({ note, onDelete, onToggleFavorite }: NoteCardP
                   </Button>
                 </div>
               ) : (
-                <ScrollArea className="max-h-[50vh] mt-4">
-                  <div className="rounded bg-muted p-4">
-                    <p className="text-sm whitespace-pre-line">{summary}</p>
+                <ScrollArea className="max-h-[60vh] mt-4">
+                  <div className="rounded bg-muted p-4 min-h-[12rem]">
+                    <p className="text-base whitespace-pre-line">{summary}</p>
                   </div>
                 </ScrollArea>
               )}
@@ -295,3 +275,5 @@ export default function NoteCard({ note, onDelete, onToggleFavorite }: NoteCardP
     </Card>
   );
 }
+
+// ... End of file. Consider refactoring if file grows further.
