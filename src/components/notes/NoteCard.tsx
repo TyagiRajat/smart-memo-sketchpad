@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import { createNote } from '@/services/noteService';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface NoteCardProps {
   note: Note;
@@ -47,7 +48,6 @@ export default function NoteCard({ note, onDelete, onToggleFavorite }: NoteCardP
     }
 
     setSummaryLoading(true);
-    setSummary(null);
     try {
       // Compose site URL and title from window.location for headers
       const referer = window.location.origin;
@@ -87,11 +87,11 @@ export default function NoteCard({ note, onDelete, onToggleFavorite }: NoteCardP
       const generatedSummary = data.choices?.[0]?.message?.content?.trim() || 'No summary generated.';
       
       setSummary(generatedSummary);
-      setSummaryDialogOpen(true);
       toast.success('Summary generated successfully!');
     } catch (error: any) {
       console.error('OpenRouter summary generation error:', error);
       toast.error('Failed to generate summary. Check your API key and try again.');
+      setSummary(null);
     } finally {
       setSummaryLoading(false);
     }
@@ -196,7 +196,10 @@ export default function NoteCard({ note, onDelete, onToggleFavorite }: NoteCardP
           </TooltipProvider>
           
           {/* Two-Step AI Summary Dialog */}
-          <Dialog open={summaryDialogOpen} onOpenChange={setSummaryDialogOpen}>
+          <Dialog open={summaryDialogOpen} onOpenChange={(open) => {
+            setSummaryDialogOpen(open);
+            if (!open) setSummary(null);
+          }}>
             <DialogTrigger asChild>
               <Button 
                 variant="outline"
@@ -204,14 +207,13 @@ export default function NoteCard({ note, onDelete, onToggleFavorite }: NoteCardP
                 className="gap-1"
                 onClick={() => {
                   setSummaryDialogOpen(true);
-                  setSummary(null);
                 }}
               >
                 <Sparkles className="h-4 w-4" />
                 Generate AI Summary
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-md max-h-[80vh] overflow-y-auto">
+            <DialogContent className="sm:max-w-md">
               <DialogHeader>
                 <DialogTitle>
                   {summary ? "AI Summary" : "OpenRouter API Key Required"}
@@ -239,7 +241,7 @@ export default function NoteCard({ note, onDelete, onToggleFavorite }: NoteCardP
                   />
                   <Button
                     variant="secondary"
-                    disabled={summaryLoading || !openRouterApiKey.trim()}
+                    disabled={summaryLoading}
                     onClick={handleGenerateSummary}
                     className="w-full"
                   >
@@ -248,18 +250,20 @@ export default function NoteCard({ note, onDelete, onToggleFavorite }: NoteCardP
                   </Button>
                 </div>
               ) : (
-                <div className="mt-4 rounded bg-muted p-4 max-h-[50vh] overflow-auto">
-                  <p className="text-sm whitespace-pre-line">{summary}</p>
-                </div>
+                <ScrollArea className="max-h-[50vh]">
+                  <div className="rounded bg-muted p-4">
+                    <p className="text-sm whitespace-pre-line">{summary}</p>
+                  </div>
+                </ScrollArea>
               )}
               
               <DialogFooter className="gap-2 mt-4">
-                {summary ? (
+                {summary && (
                   <Button onClick={handleSaveInTab} disabled={savingSummary}>
                     <Save className="h-4 w-4 mr-1" />
                     {savingSummary ? "Saving..." : "Save as new note"}
                   </Button>
-                ) : null}
+                )}
                 <Button variant="outline" onClick={() => setSummaryDialogOpen(false)}>
                   Close
                 </Button>
