@@ -1,10 +1,11 @@
+
 import { useState } from 'react';
 import { format } from 'date-fns';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Note, NoteFormData } from '@/types';
-import { Sparkles, Edit, Trash, Star, Save, Key } from 'lucide-react';
+import { Sparkles, Edit, Trash, Star, Save } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
@@ -22,8 +23,8 @@ export default function NoteCard({ note, onDelete, onToggleFavorite }: NoteCardP
   const navigate = useNavigate();
   const [isHovered, setIsHovered] = useState(false);
 
-  // OpenAI API key and summary states
-  const [openaiApiKey, setOpenaiApiKey] = useState('');
+  // OpenRouter API key and summary states
+  const [openRouterApiKey, setOpenRouterApiKey] = useState('');
   const [summary, setSummary] = useState<string | null>(null);
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [summaryDialogOpen, setSummaryDialogOpen] = useState(false);
@@ -37,24 +38,31 @@ export default function NoteCard({ note, onDelete, onToggleFavorite }: NoteCardP
   // Format date
   const formattedDate = format(new Date(note.updated_at), 'MMM d, yyyy');
 
-  // AI Summary generation and dialog logic
+  // AI Summary generation and dialog logic with OpenRouter (DeepSeek V3 Base)
   const handleGenerateSummary = async () => {
     // Validate API key
-    if (!openaiApiKey.trim()) {
-      toast.error("Please enter your OpenAI API key");
+    if (!openRouterApiKey.trim()) {
+      toast.error("Please enter your OpenRouter API key");
       return;
     }
 
     setSummaryLoading(true);
+    setSummary(null);
     try {
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      // Compose site URL and title from window.location for headers
+      const referer = window.location.origin;
+      const siteTitle = document.title || "AI Notes";
+
+      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${openaiApiKey}`
+          "Authorization": `Bearer ${openRouterApiKey.trim()}`,
+          "HTTP-Referer": referer,
+          "X-Title": siteTitle,
+          "Content-Type": "application/json"
         },
         body: JSON.stringify({
-          model: 'gpt-3.5-turbo',
+          model: "deepseek/deepseek-v3-base:free",
           messages: [
             {
               role: 'system', 
@@ -65,7 +73,7 @@ export default function NoteCard({ note, onDelete, onToggleFavorite }: NoteCardP
               content: `Please provide a concise summary of the following text:\n\n${note.content}`
             }
           ],
-          max_tokens: 150
+          max_tokens: 180
         })
       });
 
@@ -75,13 +83,14 @@ export default function NoteCard({ note, onDelete, onToggleFavorite }: NoteCardP
       }
 
       const data = await response.json();
-      const generatedSummary = data.choices[0]?.message?.content?.trim() || 'No summary generated.';
+      // OpenRouter conforms to OpenAI schema
+      const generatedSummary = data.choices?.[0]?.message?.content?.trim() || 'No summary generated.';
       
       setSummary(generatedSummary);
       setSummaryDialogOpen(true);
       toast.success('Summary generated successfully!');
-    } catch (error) {
-      console.error('OpenAI summary generation error:', error);
+    } catch (error: any) {
+      console.error('OpenRouter summary generation error:', error);
       toast.error('Failed to generate summary. Check your API key and try again.');
     } finally {
       setSummaryLoading(false);
@@ -192,31 +201,44 @@ export default function NoteCard({ note, onDelete, onToggleFavorite }: NoteCardP
                 variant="outline"
                 size="sm"
                 className="gap-1"
-                onClick={handleGenerateSummary}
-                disabled={summaryLoading}
+                onClick={() => {
+                  setSummaryDialogOpen(true);
+                  setSummary(null);
+                }}
               >
                 <Sparkles className="h-4 w-4" />
-                {summaryLoading ? "Summarizing..." : "Generate AI Summary"}
+                Generate AI Summary
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-md">
               <DialogHeader>
-                <DialogTitle>OpenAI API Key Required</DialogTitle>
+                <DialogTitle>OpenRouter API Key Required</DialogTitle>
                 <DialogDescription>
-                  Enter your OpenAI API key to generate an AI summary
+                  Enter your free OpenRouter API key and click "Summarize" to generate an AI summary.<br />
+                  <span className="font-mono text-xs text-muted-foreground">Model: deepseek/deepseek-v3-base:free</span>
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4">
                 <Input 
                   type="password"
-                  placeholder="Enter OpenAI API Key"
-                  value={openaiApiKey}
-                  onChange={(e) => setOpenaiApiKey(e.target.value)}
+                  placeholder="Enter OpenRouter API Key"
+                  value={openRouterApiKey}
+                  onChange={(e) => setOpenRouterApiKey(e.target.value)}
                   className="w-full"
+                  autoFocus
                 />
+                <Button
+                  variant="secondary"
+                  disabled={summaryLoading || !openRouterApiKey.trim()}
+                  onClick={handleGenerateSummary}
+                  className="w-full"
+                >
+                  <Sparkles className="h-4 w-4 mr-1" />
+                  {summaryLoading ? "Summarizing..." : "Summarize"}
+                </Button>
                 
                 {summary && (
-                  <div className="mt-4">
+                  <div className="mt-4 rounded bg-muted p-2">
                     <p className="text-sm whitespace-pre-line">{summary}</p>
                   </div>
                 )}
