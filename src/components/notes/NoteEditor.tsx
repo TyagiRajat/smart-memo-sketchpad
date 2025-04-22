@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -14,18 +13,10 @@ import {
   FormLabel, 
   FormMessage 
 } from '@/components/ui/form';
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogHeader, 
-  DialogTitle, 
-  DialogFooter 
-} from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Note, NoteFormData } from '@/types';
 import { toast } from 'sonner';
-import { summarizeText } from '@/services/aiService';
-import { X, Sparkles, Loader2 } from 'lucide-react';
+import { X, Loader2 } from 'lucide-react';
 
 const noteSchema = z.object({
   title: z.string().min(1, 'Title is required'),
@@ -41,9 +32,6 @@ interface NoteEditorProps {
 
 export default function NoteEditor({ note, onSave, onCancel }: NoteEditorProps) {
   const [tagInput, setTagInput] = useState('');
-  const [isSummarizing, setIsSummarizing] = useState(false);
-  const [summary, setSummary] = useState<string | undefined>(note?.summary);
-  const [isSummaryDialogOpen, setIsSummaryDialogOpen] = useState(false);
   const tagInputRef = useRef<HTMLInputElement>(null);
 
   const form = useForm<NoteFormData>({
@@ -57,7 +45,6 @@ export default function NoteEditor({ note, onSave, onCancel }: NoteEditorProps) 
 
   const { watch, setValue, formState } = form;
   const tags = watch('tags') || [];
-  const content = watch('content');
 
   const handleAddTag = () => {
     if (tagInput.trim() && !tags.includes(tagInput.trim())) {
@@ -78,26 +65,6 @@ export default function NoteEditor({ note, onSave, onCancel }: NoteEditorProps) 
     }
   };
 
-  const handleSummarize = async () => {
-    if (!content || content.length < 50) {
-      toast.error('Please add more content before generating a summary');
-      return;
-    }
-
-    setIsSummarizing(true);
-    try {
-      const generatedSummary = await summarizeText(content);
-      setSummary(generatedSummary);
-      setIsSummaryDialogOpen(true);
-      toast.success('Summary generated successfully');
-    } catch (error) {
-      console.error('Error generating summary:', error);
-      toast.error('Failed to generate summary');
-    } finally {
-      setIsSummarizing(false);
-    }
-  };
-
   // Focus tag input when the component mounts
   useEffect(() => {
     if (tagInputRef.current) {
@@ -107,9 +74,7 @@ export default function NoteEditor({ note, onSave, onCancel }: NoteEditorProps) 
 
   const onSubmit = async (data: NoteFormData) => {
     try {
-      // If we have a summary, include it in the save data
-      const dataToSave = summary ? { ...data, summary } : data;
-      await onSave(dataToSave);
+      await onSave(data);
     } catch (error) {
       console.error('Error saving note:', error);
       toast.error('Failed to save note');
@@ -194,66 +159,31 @@ export default function NoteEditor({ note, onSave, onCancel }: NoteEditorProps) 
             </div>
           </div>
 
-          <div className="flex justify-between pt-4">
+          <div className="flex justify-end pt-4">
             <Button
               type="button"
               variant="outline"
-              onClick={handleSummarize}
-              disabled={isSummarizing || !content || content.length < 50}
-              className="gap-2"
+              onClick={onCancel}
             >
-              {isSummarizing ? (
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              disabled={formState.isSubmitting || !formState.isDirty}
+              className="ml-2"
+            >
+              {formState.isSubmitting ? (
                 <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Summarizing...
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Saving...
                 </>
               ) : (
-                <>
-                  <Sparkles className="h-4 w-4" />
-                  Generate AI Summary
-                </>
+                'Save Note'
               )}
             </Button>
-
-            <div className="space-x-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={onCancel}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                disabled={formState.isSubmitting || !formState.isDirty}
-              >
-                {formState.isSubmitting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Saving...
-                  </>
-                ) : (
-                  'Save Note'
-                )}
-              </Button>
-            </div>
           </div>
         </form>
       </Form>
-
-      <Dialog open={isSummaryDialogOpen} onOpenChange={setIsSummaryDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>AI Summary</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <p className="text-sm">{summary}</p>
-          </div>
-          <DialogFooter>
-            <Button onClick={() => setIsSummaryDialogOpen(false)}>Close</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
