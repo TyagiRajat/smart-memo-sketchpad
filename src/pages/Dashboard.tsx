@@ -6,7 +6,7 @@ import { Link } from 'react-router-dom';
 import { getNotes, getFavorites, deleteNote, toggleFavorite } from '@/services/noteService';
 import { Button } from '@/components/ui/button';
 import NoteCard from '@/components/notes/NoteCard';
-import { BookText, Plus, Star, Loader2 } from 'lucide-react';
+import { BookText, Plus, Star, Loader2, List } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   AlertDialog,
@@ -85,12 +85,20 @@ const Dashboard = () => {
     <div className="space-y-8">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">Dashboard</h1>
-        <Button asChild>
-          <Link to="/notes/new" className="flex items-center gap-2">
-            <Plus className="h-4 w-4" />
-            New Note
-          </Link>
-        </Button>
+        <div className="flex gap-2">
+          <Button asChild variant="outline">
+            <Link to="/notes" className="flex items-center gap-2">
+              <List className="h-4 w-4" />
+              View All Notes
+            </Link>
+          </Button>
+          <Button asChild>
+            <Link to="/notes/new" className="flex items-center gap-2">
+              <Plus className="h-4 w-4" />
+              New Note
+            </Link>
+          </Button>
+        </div>
       </div>
 
       {isLoading ? (
@@ -128,9 +136,16 @@ const Dashboard = () => {
 
           {/* Recent Notes Section */}
           <div className="space-y-4">
-            <div className="flex items-center gap-2">
-              <BookText className="h-5 w-5" />
-              <h2 className="text-xl font-medium">Recent Notes</h2>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <BookText className="h-5 w-5" />
+                <h2 className="text-xl font-medium">Recent Notes</h2>
+              </div>
+              {notes && notes.length > 0 && (
+                <Button asChild variant="link" size="sm">
+                  <Link to="/notes">View all</Link>
+                </Button>
+              )}
             </div>
             {notes && notes.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -146,16 +161,14 @@ const Dashboard = () => {
             ) : (
               <div className="bg-muted/50 rounded-lg p-6 text-center">
                 <p className="text-muted-foreground">No notes yet</p>
-                <Button asChild className="mt-2">
-                  <Link to="/notes/new">Create your first note</Link>
-                </Button>
-              </div>
-            )}
-            {notes && notes.length > 6 && (
-              <div className="flex justify-center mt-4">
-                <Button asChild variant="outline">
-                  <Link to="/notes">View all notes</Link>
-                </Button>
+                <div className="flex gap-2 justify-center mt-4">
+                  <Button asChild variant="outline">
+                    <Link to="/notes">View all notes</Link>
+                  </Button>
+                  <Button asChild>
+                    <Link to="/notes/new">Create your first note</Link>
+                  </Button>
+                </div>
               </div>
             )}
           </div>

@@ -5,7 +5,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/componen
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Note } from '@/types';
-import { Edit, Trash, Star, Save, Sparkles } from 'lucide-react';
+import { Edit, Trash, Star, Save, Sparkles, Eye } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
@@ -118,6 +118,11 @@ export default function NoteCard({ note, onDelete, onToggleFavorite }: NoteCardP
     }
   };
 
+  // View full note content
+  const handleViewNote = () => {
+    navigate(`/notes/${note.id}`);
+  };
+
   return (
     <Card 
       className={`h-full transition-shadow hover:shadow-md ${isHovered ? 'ring-1 ring-accent/20' : ''}`} 
@@ -181,6 +186,23 @@ export default function NoteCard({ note, onDelete, onToggleFavorite }: NoteCardP
               <TooltipContent>Edit note</TooltipContent>
             </Tooltip>
           </TooltipProvider>
+          
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button 
+                  variant="ghost" 
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={handleViewNote}
+                >
+                  <Eye className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>View note</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
