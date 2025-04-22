@@ -65,7 +65,6 @@ export default function NoteEditor({ note, onSave, onCancel }: NoteEditorProps) 
     }
   };
 
-  // Focus tag input when the component mounts
   useEffect(() => {
     if (tagInputRef.current) {
       tagInputRef.current.focus();
