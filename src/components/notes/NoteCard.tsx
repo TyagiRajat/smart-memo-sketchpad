@@ -195,6 +195,7 @@ export default function NoteCard({ note, onDelete, onToggleFavorite }: NoteCardP
             </Tooltip>
           </TooltipProvider>
           
+          {/* Two-Step AI Summary Dialog */}
           <Dialog open={summaryDialogOpen} onOpenChange={setSummaryDialogOpen}>
             <DialogTrigger asChild>
               <Button 
@@ -210,44 +211,53 @@ export default function NoteCard({ note, onDelete, onToggleFavorite }: NoteCardP
                 Generate AI Summary
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-md">
+            <DialogContent className="sm:max-w-md max-h-[80vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle>OpenRouter API Key Required</DialogTitle>
+                <DialogTitle>
+                  {summary ? "AI Summary" : "OpenRouter API Key Required"}
+                </DialogTitle>
                 <DialogDescription>
-                  Enter your free OpenRouter API key and click "Summarize" to generate an AI summary.<br />
-                  <span className="font-mono text-xs text-muted-foreground">Model: deepseek/deepseek-v3-base:free</span>
+                  {summary ? 
+                    "Here's your AI-generated summary:" : 
+                    <>
+                      Enter your free OpenRouter API key and click "Summarize" to generate an AI summary.<br />
+                      <span className="font-mono text-xs text-muted-foreground">Model: deepseek/deepseek-v3-base:free</span>
+                    </>
+                  }
                 </DialogDescription>
               </DialogHeader>
-              <div className="space-y-4">
-                <Input 
-                  type="password"
-                  placeholder="Enter OpenRouter API Key"
-                  value={openRouterApiKey}
-                  onChange={(e) => setOpenRouterApiKey(e.target.value)}
-                  className="w-full"
-                  autoFocus
-                />
-                <Button
-                  variant="secondary"
-                  disabled={summaryLoading || !openRouterApiKey.trim()}
-                  onClick={handleGenerateSummary}
-                  className="w-full"
-                >
-                  <Sparkles className="h-4 w-4 mr-1" />
-                  {summaryLoading ? "Summarizing..." : "Summarize"}
-                </Button>
-                
-                {summary && (
-                  <div className="mt-4 rounded bg-muted p-2">
-                    <p className="text-sm whitespace-pre-line">{summary}</p>
-                  </div>
-                )}
-              </div>
-              <DialogFooter className="gap-2">
+              
+              {!summary ? (
+                <div className="space-y-4 py-2">
+                  <Input 
+                    type="password"
+                    placeholder="Enter OpenRouter API Key"
+                    value={openRouterApiKey}
+                    onChange={(e) => setOpenRouterApiKey(e.target.value)}
+                    className="w-full"
+                    autoFocus
+                  />
+                  <Button
+                    variant="secondary"
+                    disabled={summaryLoading || !openRouterApiKey.trim()}
+                    onClick={handleGenerateSummary}
+                    className="w-full"
+                  >
+                    <Sparkles className="h-4 w-4 mr-1" />
+                    {summaryLoading ? "Summarizing..." : "Summarize"}
+                  </Button>
+                </div>
+              ) : (
+                <div className="mt-4 rounded bg-muted p-4 max-h-[50vh] overflow-auto">
+                  <p className="text-sm whitespace-pre-line">{summary}</p>
+                </div>
+              )}
+              
+              <DialogFooter className="gap-2 mt-4">
                 {summary ? (
                   <Button onClick={handleSaveInTab} disabled={savingSummary}>
                     <Save className="h-4 w-4 mr-1" />
-                    {savingSummary ? "Saving..." : "Save in new tab"}
+                    {savingSummary ? "Saving..." : "Save as new note"}
                   </Button>
                 ) : null}
                 <Button variant="outline" onClick={() => setSummaryDialogOpen(false)}>
