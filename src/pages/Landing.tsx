@@ -1,4 +1,3 @@
-
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
@@ -23,9 +22,6 @@ const Landing = () => {
             </Link>
             <Link to="/features" className="text-sm font-medium hover:underline underline-offset-4">
               Features
-            </Link>
-            <Link to="/pricing" className="text-sm font-medium hover:underline underline-offset-4">
-              Pricing
             </Link>
           </nav>
           <div className="flex items-center gap-2">
