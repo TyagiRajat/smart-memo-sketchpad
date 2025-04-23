@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -138,21 +139,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signInWithGoogle = async () => {
     try {
-      // Use Supabase OAuth
+      // Use Supabase OAuth with improved error handling
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
           redirectTo: `${window.location.origin}/dashboard`,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          }
         }
       });
       
       if (error) {
+        console.error('Google OAuth error:', error);
+        if (error.status === 403) {
+          toast.error('Access forbidden. Google OAuth is not properly configured in your Supabase project.');
+        } else {
+          toast.error(error.message || 'Failed to sign in with Google');
+        }
         throw error;
       }
       
       // Note: Successful OAuth redirects away from the app
       if (!data.url) {
         toast.error('Failed to initialize Google sign in');
+      } else {
+        // Redirect to the Google OAuth URL
+        window.location.href = data.url;
       }
     } catch (error: any) {
       console.error('Google sign in error:', error);
