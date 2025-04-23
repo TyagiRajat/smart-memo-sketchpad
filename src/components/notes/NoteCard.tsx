@@ -7,7 +7,7 @@ import { Note } from '@/types';
 import { Edit, Trash, Star, Save, Sparkles, Eye } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import { createNote } from '@/services/noteService';
@@ -229,22 +229,10 @@ export default function NoteCard({ note, onDelete, onToggleFavorite }: NoteCardP
           Generate AI Summary
         </Button>
 
-        {/* Euron AI Summary Dialog */}
         <Dialog open={summaryDialogOpen} onOpenChange={(open) => {
           setSummaryDialogOpen(open);
           if (!open) setSummary(null);
         }}>
-          <DialogTrigger asChild>
-            <Button 
-              variant="outline"
-              size="sm"
-              className="gap-1"
-              onClick={() => setSummaryDialogOpen(true)}
-            >
-              <Sparkles className="h-4 w-4" />
-              Generate AI Summary
-            </Button>
-          </DialogTrigger>
           <DialogContent className="sm:max-w-2xl max-w-[95vw] max-h-[80vh]">
             <DialogHeader>
               <DialogTitle>
