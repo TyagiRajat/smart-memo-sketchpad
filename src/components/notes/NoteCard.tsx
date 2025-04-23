@@ -13,6 +13,9 @@ import { toast } from 'sonner';
 import { createNote } from '@/services/noteService';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
+// === Euron API Key (safe to expose if it's a public key!) ===
+const EURON_API_KEY = "YOUR_EURON_PUBLISHABLE_API_KEY"; // <-- Put your real key here
+
 interface NoteCardProps {
   note: Note;
   onDelete: (id: string) => void;
@@ -23,8 +26,8 @@ export default function NoteCard({ note, onDelete, onToggleFavorite }: NoteCardP
   const navigate = useNavigate();
   const [isHovered, setIsHovered] = useState(false);
 
-  // EuronAI API key and summary states
-  const [euronApiKey, setEuronApiKey] = useState('');
+  // Remove API key/local input state
+  // const [euronApiKey, setEuronApiKey] = useState('');
   const [summary, setSummary] = useState<string | null>(null);
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [summaryDialogOpen, setSummaryDialogOpen] = useState(false);
@@ -40,8 +43,9 @@ export default function NoteCard({ note, onDelete, onToggleFavorite }: NoteCardP
 
   // Call Euron AI summarize endpoint
   const handleGenerateSummary = async () => {
-    if (!euronApiKey.trim()) {
-      toast.error("Please enter your Euron API key");
+    // Use the hardcoded API key now
+    if (!EURON_API_KEY.trim()) {
+      toast.error("Euron API key not configured.");
       return;
     }
     setSummaryLoading(true);
@@ -51,7 +55,7 @@ export default function NoteCard({ note, onDelete, onToggleFavorite }: NoteCardP
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${euronApiKey.trim()}`
+          'Authorization': `Bearer ${EURON_API_KEY.trim()}`
         },
         body: JSON.stringify({
           messages: [
@@ -219,6 +223,7 @@ export default function NoteCard({ note, onDelete, onToggleFavorite }: NoteCardP
           </TooltipProvider>
         </div>
 
+        {/* Only show one "Generate AI Summary" button, not duplicated */}
         <Button 
           variant="outline"
           size="sm"
@@ -236,29 +241,19 @@ export default function NoteCard({ note, onDelete, onToggleFavorite }: NoteCardP
           <DialogContent className="sm:max-w-2xl max-w-[95vw] max-h-[80vh]">
             <DialogHeader>
               <DialogTitle>
-                {summary ? "AI Summary" : "Euron API Key Required"}
+                AI Summary
               </DialogTitle>
               <DialogDescription>
-                {summary ? 
-                  "Here's your AI-generated summary:" : 
-                  <>
-                    Enter your free Euron AI API key and click "Summarize" to generate an AI summary.<br />
-                    <span className="font-mono text-xs text-muted-foreground">Model: gpt-4.1-mini</span>
-                  </>
+                {summary
+                  ? "Here's your AI-generated summary:"
+                  : <span className="font-mono text-xs text-muted-foreground">Model: gpt-4.1-mini</span>
                 }
               </DialogDescription>
             </DialogHeader>
             
+            {/* No API key input, just show summary or loading */}
             {!summary ? (
               <div className="space-y-4 py-2">
-                <Input 
-                  type="password"
-                  placeholder="Enter Euron API Key"
-                  value={euronApiKey}
-                  onChange={(e) => setEuronApiKey(e.target.value)}
-                  className="w-full"
-                  autoFocus
-                />
                 <Button
                   variant="secondary"
                   disabled={summaryLoading}
