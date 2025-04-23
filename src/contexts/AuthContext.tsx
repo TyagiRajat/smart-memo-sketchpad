@@ -1,13 +1,17 @@
-
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { User } from '@/types';
+import { createClient } from '@supabase/supabase-js';
 
-// Initialize Supabase client only if environment variables are available
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+// Initialize Supabase client with the provided credentials
+const supabaseUrl = 'https://khmeghcoocsegjsrgsaw.supabase.co';
+const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtobWVnaGNvb2NzZWdqc3Jnc2F3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUzMzIwMjQsImV4cCI6MjA2MDkwODAyNH0.3eY-lb2UFIGFhbD6shyWGxE26XYT0Y24Jd6onARhyQ8';
 
+// Create Supabase client
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+// Maintain the mockUsers and authStorage for fallback/testing purposes
 // Create a mock storage for users when Supabase is not configured
 const mockUsers = {
   getUsers: () => {
@@ -43,17 +47,6 @@ const authStorage = {
   }
 };
 
-// Initialize supabase conditionally to avoid errors
-let supabase = null;
-const isSupabaseConfigured = !!(supabaseUrl && supabaseAnonKey);
-
-if (isSupabaseConfigured) {
-  const { createClient } = require('@supabase/supabase-js');
-  supabase = createClient(supabaseUrl, supabaseAnonKey);
-} else {
-  console.warn('Supabase not configured. Using mock authentication.');
-}
-
 interface AuthContextType {
   user: User | null;
   loading: boolean;
@@ -76,7 +69,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const checkSession = async () => {
       setLoading(true);
       
-      if (isSupabaseConfigured && supabase) {
+      try {
         // Get current session from Supabase
         const { data: { session } } = await supabase.auth.getSession();
         
@@ -91,83 +84,49 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           
           setUser(userData);
         }
-      } else {
-        // Use local storage for mock authentication
-        const session = authStorage.getSession();
-        if (session) {
-          setUser(session.user);
-        }
+      } catch (error) {
+        console.error("Error checking session:", error);
+      } finally {
+        setLoading(false);
       }
-      
-      setLoading(false);
     };
 
     checkSession();
 
-    // Subscribe to auth changes if using Supabase
-    let subscription: { unsubscribe: () => void } | null = null;
-    
-    if (isSupabaseConfigured && supabase) {
-      const { data } = supabase.auth.onAuthStateChange(async (event, session) => {
-        if (session?.user) {
-          const userData: User = {
-            id: session.user.id,
-            email: session.user.email || '',
-            name: session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'User',
-            avatar_url: session.user.user_metadata?.avatar_url || undefined,
-          };
-          
-          setUser(userData);
-        } else {
-          setUser(null);
-        }
-      });
-      
-      subscription = data.subscription;
-    }
+    // Subscribe to auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (session?.user) {
+        const userData: User = {
+          id: session.user.id,
+          email: session.user.email || '',
+          name: session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'User',
+          avatar_url: session.user.user_metadata?.avatar_url || undefined,
+        };
+        
+        setUser(userData);
+      } else {
+        setUser(null);
+      }
+    });
 
     return () => {
-      subscription?.unsubscribe();
+      subscription.unsubscribe();
     };
   }, []);
 
   const signIn = async (email: string, password: string) => {
     setLoading(true);
     try {
-      if (isSupabaseConfigured && supabase) {
-        // Use Supabase authentication
-        const { data, error } = await supabase.auth.signInWithPassword({ 
-          email, 
-          password 
-        });
-        
-        if (error) throw error;
-        
-        toast.success('Signed in successfully');
-        navigate('/dashboard');
-      } else {
-        // Use mock authentication
-        const user = mockUsers.getUserByEmail(email);
-        if (!user || user.password !== password) {
-          throw new Error('Invalid email or password');
-        }
-        
-        const userData: User = {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          avatar_url: user.avatar_url,
-        };
-        
-        // Save session to local storage
-        authStorage.saveSession({
-          user: userData
-        });
-        
-        setUser(userData);
-        toast.success('Signed in successfully');
-        navigate('/dashboard');
-      }
+      // Use Supabase authentication
+      const { data, error } = await supabase.auth.signInWithPassword({ 
+        email, 
+        password 
+      });
+      
+      if (error) throw error;
+      
+      toast.success('Signed in successfully');
+      navigate('/dashboard');
     } catch (error: any) {
       console.error('Sign in error:', error);
       toast.error(error.message || 'Failed to sign in');
@@ -179,47 +138,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signInWithGoogle = async () => {
     try {
-      if (isSupabaseConfigured && supabase) {
-        // Use Supabase OAuth
-        const { data, error } = await supabase.auth.signInWithOAuth({
-          provider: 'google',
-          options: {
-            redirectTo: `${window.location.origin}/dashboard`,
-          }
-        });
-        
-        if (error) {
-          throw error;
+      // Use Supabase OAuth
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/dashboard`,
         }
-        
-        // Note: Successful OAuth redirects away from the app
-        if (!data.url) {
-          toast.error('Failed to initialize Google sign in');
-        }
-      } else {
-        // Mock Google sign in for development
-        toast.info('Mock Google sign in (Supabase not configured)');
-        
-        // Create a mock user
-        const mockUser: User = {
-          id: 'google-mock-' + Date.now(),
-          email: 'google-user@example.com',
-          name: 'Google User',
-          avatar_url: 'https://lh3.googleusercontent.com/a/default-user',
-        };
-        
-        // Save mock user and session
-        mockUsers.saveUser({
-          ...mockUser,
-          password: 'mockpassword'
-        });
-        
-        authStorage.saveSession({
-          user: mockUser
-        });
-        
-        setUser(mockUser);
-        navigate('/dashboard');
+      });
+      
+      if (error) {
+        throw error;
+      }
+      
+      // Note: Successful OAuth redirects away from the app
+      if (!data.url) {
+        toast.error('Failed to initialize Google sign in');
       }
     } catch (error: any) {
       console.error('Google sign in error:', error);
@@ -231,55 +164,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signUp = async (email: string, password: string, name: string) => {
     setLoading(true);
     try {
-      if (isSupabaseConfigured && supabase) {
-        // Use Supabase sign up
-        const { data, error } = await supabase.auth.signUp({ 
-          email, 
-          password,
-          options: {
-            data: {
-              name
-            },
-          }
-        });
-        
-        if (error) throw error;
-        
-        toast.success('Account created successfully');
-        navigate('/dashboard');
-      } else {
-        // Mock sign up
-        const existingUser = mockUsers.getUserByEmail(email);
-        if (existingUser) {
-          throw new Error('Email already in use');
+      // Use Supabase sign up
+      const { data, error } = await supabase.auth.signUp({ 
+        email, 
+        password,
+        options: {
+          data: {
+            name
+          },
         }
-        
-        const newUser = {
-          id: 'mock-' + Date.now().toString(),
-          email,
-          password,
-          name,
-          avatar_url: undefined,
-        };
-        
-        mockUsers.saveUser(newUser);
-        
-        const userData: User = {
-          id: newUser.id,
-          email: newUser.email,
-          name: newUser.name,
-          avatar_url: newUser.avatar_url,
-        };
-        
-        // Save session
-        authStorage.saveSession({
-          user: userData
-        });
-        
-        setUser(userData);
-        toast.success('Account created successfully');
-        navigate('/dashboard');
-      }
+      });
+      
+      if (error) throw error;
+      
+      toast.success('Account created successfully');
+      navigate('/dashboard');
     } catch (error: any) {
       console.error('Sign up error:', error);
       toast.error(error.message || 'Failed to create account');
@@ -291,15 +190,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signOut = async () => {
     try {
-      if (isSupabaseConfigured && supabase) {
-        // Use Supabase sign out
-        const { error } = await supabase.auth.signOut();
-        
-        if (error) throw error;
-      } else {
-        // Clear mock session
-        authStorage.clearSession();
-      }
+      // Use Supabase sign out
+      const { error } = await supabase.auth.signOut();
+      
+      if (error) throw error;
       
       setUser(null);
       toast.success('Signed out successfully');
@@ -336,4 +230,4 @@ export const useAuth = () => {
   return context;
 };
 
-export { supabase }; // Export supabase instance even if it's null
+export { supabase }; // Export supabase instance
