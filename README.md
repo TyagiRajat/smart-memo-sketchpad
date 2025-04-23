@@ -1,73 +1,122 @@
-# Welcome to your Lovable project
 
-## Project info
+# AI Notes
 
-**URL**: https://lovable.dev/projects/6bb80a72-5d7c-4668-b779-022d7051ed02
+AI Notes is a modern, fullstack note-taking web application built with React, Vite, TypeScript, Shadcn UI, and Tailwind CSS. It enables users to quickly create, edit, tag, and organize notes, and features AI-powered summarization to make large notes or articles digestible in seconds.
 
-## How can I edit this code?
+## Features
 
-There are several ways of editing your application.
+- ✨ **AI Summarization:** Quickly summarize long notes using the built-in AI assistant (requires Supabase + API key configuration).
+- 📝 **Rich Note Editing:** Create, update, and delete notes with title, tags, and markdown-style formatting.
+- 🔖 **Tagging & Favorites:** Add tags, filter, and mark notes as favorites for quick access.
+- 🔒 **Authentication:** Secure sign-up, login, and user session management (provided by Supabase).
+- 🗄️ **Persistent Cloud Storage:** Notes and user data are stored securely via Supabase Postgres.
+- 🚀 **Fully Responsive UI:** Mobile-first, fast, and accessible interface.
 
-**Use Lovable**
+## Demo
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/6bb80a72-5d7c-4668-b779-022d7051ed02) and start prompting.
+You can quickly try the app by running it locally (see steps below), or deploy it to your favorite platform (Vercel, Netlify, etc.).
 
-Changes made via Lovable will be committed automatically to this repo.
+## Getting Started
 
-**Use your preferred IDE**
+### 1. Clone the repository
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+```bash
+git clone https://github.com/YOUR_USERNAME/ai-notes.git
+cd ai-notes
+```
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+### 2. Install dependencies
 
-Follow these steps:
+```bash
+npm install
+# or
+yarn
+```
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+### 3. Set up Supabase
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+You’ll need a free [Supabase](https://supabase.com/) project.
 
-# Step 3: Install the necessary dependencies.
-npm i
+- Create a project on Supabase.
+- Get your Project URL (e.g., `https://your-project-id.supabase.co`).
+- Create a table for storing notes and enable authentication (email setup recommended).
+- Make sure your Edge Functions are deployed (see the `supabase/functions` directory).
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+#### Environment variables
+
+On Vercel, go to your project's Settings > Environment Variables:
+
+- `VITE_SUPABASE_URL` — Your Supabase project URL (e.g., `https://your-project-id.supabase.co`)
+- `VITE_SUPABASE_ANON_KEY` — Your Supabase anon/public API key
+
+**Local development:**  
+Create a `.env` file at the project root (do **not** commit to git) with:
+
+```
+VITE_SUPABASE_URL=https://your-project-id.supabase.co
+VITE_SUPABASE_ANON_KEY=your-anon-key
+```
+
+### 4. Start the app
+
+```bash
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+### 5. Deploy to Vercel
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+- [Deploy on Vercel](https://vercel.com/new)
+- Set your environment variables for Supabase as above.
+- Build and deploy.
 
-**Use GitHub Codespaces**
+## AI Summarization
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+AI functions are powered by the `/supabase/functions/generate-summary` Edge Function, which safely proxies requests to your configured AI provider (e.g., Euron API key set as an Edge Function Secret).
 
-## What technologies are used for this project?
+### Setting up the AI summary Edge Function
 
-This project is built with:
+1. Install the Supabase CLI if needed:  
+   `npm install -g supabase`
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+2. Deploy the function:
+   ```bash
+   cd supabase/functions/generate-summary
+   supabase functions deploy generate-summary
+   ```
 
-## How can I deploy this project?
+3. Set your AI provider API key secret:
+   ```bash
+   supabase secrets set EURON_API_KEY=your_api_key_here
+   ```
 
-Simply open [Lovable](https://lovable.dev/projects/6bb80a72-5d7c-4668-b779-022d7051ed02) and click on Share -> Publish.
+4. Update rules and CORS as needed in the Supabase dashboard.
 
-## Can I connect a custom domain to my Lovable project?
+## Technologies Used
 
-Yes, you can!
+- [React](https://react.dev/)
+- [Vite](https://vitejs.dev/)
+- [TypeScript](https://www.typescriptlang.org/)
+- [Supabase](https://supabase.com/)
+- [Shadcn/UI](https://ui.shadcn.com/)
+- [Tailwind CSS](https://tailwindcss.com/)
+- [Lucide](https://lucide.dev/) (icons)
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+## Folder Structure
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+- `src/` — Main application source code
+- `src/components/` — React UI components
+- `src/services/` — API and utility functions
+- `src/pages/` — Page components for routing
+- `supabase/` — Supabase Edge Functions and config
+
+## Contributing
+
+Feel free to open issues or PRs! All feedback and ideas are welcome.
+
+## License
+
+[MIT](LICENSE)
+
+---
+
+Made with ❤️ by [Your Name or Team]  
