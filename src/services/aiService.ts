@@ -1,89 +1,47 @@
-
 import { toast } from 'sonner';
 
-// Store API key in state or localStorage instead of hardcoding
-let euronApiKey: string | null = null;
-
 /**
- * Set the Euron API key to use for AI services
- */
-export function setEuronApiKey(key: string): void {
-  euronApiKey = key;
-  try {
-    // Store in localStorage for persistence across sessions
-    localStorage.setItem('euron_api_key', key);
-  } catch (e) {
-    console.warn('Failed to store API key in localStorage');
-  }
-}
-
-/**
- * Get the stored Euron API key or retrieve from localStorage
- */
-export function getEuronApiKey(): string | null {
-  if (!euronApiKey) {
-    try {
-      // Try to get from localStorage
-      euronApiKey = localStorage.getItem('euron_api_key');
-    } catch (e) {
-      console.warn('Failed to retrieve API key from localStorage');
-    }
-  }
-  return euronApiKey;
-}
-
-/**
- * Generate an AI summary of the provided text using Euron API
+ * Generate an AI summary of the provided text using a proxied Euron API
+ * The actual API key is stored securely in Supabase Edge Function Secrets
  */
 export async function generateAiSummary(text: string): Promise<string> {
-  const apiKey = getEuronApiKey();
-  
-  if (!apiKey) {
-    throw new Error("No API key available");
-  }
-  
-  const response = await fetch('https://api.euron.one/api/v1/euri/alpha/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey.trim()}`
-    },
-    body: JSON.stringify({
-      messages: [
-        {
-          role: "user",
-          content: `Summarize this text in 3-5 sentences. Respond ONLY with the summary:\n\n${text}`
-        }
-      ],
-      model: "gpt-4.1-mini",
-      max_tokens: 550,
-      temperature: 0.7
-    })
-  });
+  try {
+    const response = await fetch('/api/generate-summary', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        text
+      })
+    });
 
-  if (!response.ok) {
-    const text = await response.text();
-    console.error("Euron API error:", text);
-    throw new Error(`API error: ${response.status} ${text}`);
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("Summary API error:", errorText);
+      throw new Error(`API error: ${response.status} ${errorText}`);
+    }
+    
+    const data = await response.json();
+    
+    if (data.error) {
+      throw new Error(data.error);
+    }
+    
+    if (data.summary) {
+      return data.summary.trim();
+    }
+    
+    throw new Error("No summary received from AI service");
+  } catch (error: any) {
+    console.error('Error generating summary:', error);
+    throw new Error(`Failed to generate summary: ${error.message}`);
   }
-  
-  const data = await response.json();
-  
-  // Try multiple possible output formats
-  if (data.choices && data.choices[0]?.message?.content) {
-    return data.choices[0].message.content.trim();
-  } else if (data.summary) {
-    return data.summary.trim();
-  } else if (data.content) {
-    return data.content.trim();
-  }
-  
-  throw new Error("No summary received from Euron AI");
 }
 
 /**
- * Summarize text using the DeepSeek Open API.
- * Your DeepSeek API key must be available at process.env.DEEPSEEK_API_KEY from Supabase or another secure method.
+ * Summarize text using a basic text extraction algorithm
+ * Used as fallback when the AI service is unavailable
  */
 export async function summarizeText(text: string): Promise<string> {
   try {

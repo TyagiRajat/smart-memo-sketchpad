@@ -9,11 +9,10 @@ import { Edit, Trash, Star, Save, Sparkles, Eye } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import { createNote } from '@/services/noteService';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { generateAiSummary, getEuronApiKey, setEuronApiKey } from '@/services/aiService';
+import { generateAiSummary } from '@/services/aiService';
 
 interface NoteCardProps {
   note: Note;
@@ -25,7 +24,6 @@ export default function NoteCard({ note, onDelete, onToggleFavorite }: NoteCardP
   const navigate = useNavigate();
   const [isHovered, setIsHovered] = useState(false);
 
-  const [euronApiKeyInput, setEuronApiKeyInput] = useState('');
   const [summary, setSummary] = useState<string | null>(null);
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [summaryDialogOpen, setSummaryDialogOpen] = useState(false);
@@ -39,22 +37,8 @@ export default function NoteCard({ note, onDelete, onToggleFavorite }: NoteCardP
   // Format date
   const formattedDate = format(new Date(note.updated_at), 'MMM d, yyyy');
 
-  // Call Euron AI summarize endpoint
+  // Call AI summarize endpoint through our secure proxy
   const handleGenerateSummary = async () => {
-    // Check if we already have an API key stored
-    let apiKey = getEuronApiKey();
-    
-    // If we have an input value, use and store it
-    if (euronApiKeyInput.trim()) {
-      setEuronApiKey(euronApiKeyInput.trim());
-      apiKey = euronApiKeyInput.trim();
-    }
-    
-    if (!apiKey) {
-      toast.error("Please enter your Euron API key");
-      return;
-    }
-    
     setSummaryLoading(true);
     setSummary(null);
     try {
@@ -62,7 +46,7 @@ export default function NoteCard({ note, onDelete, onToggleFavorite }: NoteCardP
       setSummary(generatedSummary);
       toast.success('Summary generated successfully!');
     } catch (err: any) {
-      console.error('Euron summary error:', err);
+      console.error('Summary error:', err);
       toast.error("Failed to generate summary: " + (err?.message || "Unknown error"));
       setSummary(null);
     } finally {
@@ -198,7 +182,13 @@ export default function NoteCard({ note, onDelete, onToggleFavorite }: NoteCardP
           variant="outline"
           size="sm"
           className="gap-1 mt-1"
-          onClick={() => setSummaryDialogOpen(true)}
+          onClick={() => {
+            setSummaryDialogOpen(true);
+            // Automatically generate summary when dialog opens
+            if (!summary && !summaryLoading) {
+              handleGenerateSummary();
+            }
+          }}
         >
           <Sparkles className="h-4 w-4" />
           Generate AI Summary
@@ -211,50 +201,33 @@ export default function NoteCard({ note, onDelete, onToggleFavorite }: NoteCardP
           <DialogContent className="sm:max-w-2xl max-w-[95vw] max-h-[80vh]">
             <DialogHeader>
               <DialogTitle>
-                {summary ? "AI Summary" : "Euron API Key Required"}
+                AI Summary
               </DialogTitle>
               <DialogDescription>
                 {summary ? 
                   "Here's your AI-generated summary:" : 
-                  <>
-                    {getEuronApiKey() ? 
-                      <span className="font-mono text-xs text-muted-foreground">Model: gpt-4.1-mini</span> : 
-                      "Enter your Euron AI API key and click \"Summarize\" to generate an AI summary."
-                    }
-                  </>
+                  "Generating summary..."
                 }
               </DialogDescription>
             </DialogHeader>
             
-            {!summary ? (
-              <div className="space-y-4 py-2">
-                {!getEuronApiKey() && (
-                  <Input 
-                    type="password"
-                    placeholder="Enter Euron API Key"
-                    value={euronApiKeyInput}
-                    onChange={(e) => setEuronApiKeyInput(e.target.value)}
-                    className="w-full"
-                    autoFocus
-                  />
-                )}
-                <Button
-                  variant="secondary"
-                  disabled={summaryLoading}
-                  onClick={handleGenerateSummary}
-                  className="w-full"
-                >
-                  <Sparkles className="h-4 w-4 mr-1" />
-                  {summaryLoading ? "Summarizing..." : "Summarize"}
-                </Button>
-              </div>
-            ) : (
-              <ScrollArea className="max-h-[60vh] mt-4">
-                <div className="rounded bg-muted p-4 min-h-[12rem]">
-                  <p className="text-base whitespace-pre-line">{summary}</p>
+            <div className="space-y-4 py-2">
+              {summaryLoading ? (
+                <div className="flex items-center justify-center p-6">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
                 </div>
-              </ScrollArea>
-            )}
+              ) : summary ? (
+                <ScrollArea className="max-h-[60vh] mt-4">
+                  <div className="rounded bg-muted p-4 min-h-[12rem]">
+                    <p className="text-base whitespace-pre-line">{summary}</p>
+                  </div>
+                </ScrollArea>
+              ) : (
+                <div className="p-4 text-center text-muted-foreground">
+                  <p>Preparing to generate summary...</p>
+                </div>
+              )}
+            </div>
             
             <DialogFooter className="gap-2 mt-4">
               {summary && (
