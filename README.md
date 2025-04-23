@@ -119,4 +119,4 @@ Feel free to open issues or PRs! All feedback and ideas are welcome.
 
 ---
 
-Made with ❤️ by [Your Name or Team]  
+Made with ❤️ by Rajat Tyagi
