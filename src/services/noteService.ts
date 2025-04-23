@@ -1,9 +1,15 @@
 
 import { Note, NoteFormData } from '@/types';
 
-// Mock database of notes
-let mockNotes: Note[] = [
-  {
+// Initialize notes from localStorage or use the default note if localStorage is empty
+const getInitialNotes = (): Note[] => {
+  const storedNotes = localStorage.getItem('notes');
+  if (storedNotes) {
+    return JSON.parse(storedNotes);
+  }
+  
+  // Default initial note
+  return [{
     id: '1',
     title: 'Welcome to AI Notes',
     content: '# Welcome to AI Notes\n\nThis is your first note. You can edit it, delete it, or create new ones.\n\n## Features\n\n- Create, edit, and delete notes\n- Organize with tags\n- Summarize with AI\n- Save favorites\n\nEnjoy using AI Notes!',
@@ -13,8 +19,16 @@ let mockNotes: Note[] = [
     user_id: '123',
     is_favorite: true,
     tags: ['welcome', 'tutorial']
-  }
-];
+  }];
+};
+
+// Mock database of notes
+let mockNotes: Note[] = getInitialNotes();
+
+// Helper function to save notes to localStorage
+const saveNotesToStorage = () => {
+  localStorage.setItem('notes', JSON.stringify(mockNotes));
+};
 
 // Generate a unique ID
 const generateId = () => {
@@ -52,6 +66,7 @@ export const createNote = async (userId: string, noteData: NoteFormData): Promis
   };
   
   mockNotes = [...mockNotes, newNote];
+  saveNotesToStorage(); // Save to localStorage
   return newNote;
 };
 
@@ -74,6 +89,7 @@ export const updateNote = async (noteId: string, noteData: Partial<NoteFormData>
   
   mockNotes[noteIndex] = updatedNote;
   mockNotes = [...mockNotes];
+  saveNotesToStorage(); // Save to localStorage
   
   return updatedNote;
 };
@@ -84,6 +100,7 @@ export const deleteNote = async (noteId: string): Promise<void> => {
   await new Promise(resolve => setTimeout(resolve, 500));
   
   mockNotes = mockNotes.filter(note => note.id !== noteId);
+  saveNotesToStorage(); // Save to localStorage
 };
 
 // Toggle favorite status
@@ -105,6 +122,7 @@ export const toggleFavorite = async (noteId: string): Promise<Note> => {
   
   mockNotes[noteIndex] = updatedNote;
   mockNotes = [...mockNotes];
+  saveNotesToStorage(); // Save to localStorage
   
   return updatedNote;
 };
