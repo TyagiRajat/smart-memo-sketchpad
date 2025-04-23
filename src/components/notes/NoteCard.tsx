@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { format } from 'date-fns';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -169,7 +168,7 @@ export default function NoteCard({ note, onDelete, onToggleFavorite }: NoteCardP
           </div>
         )}
       </CardContent>
-      <CardFooter className="flex justify-between pt-2">
+      <CardFooter className="flex justify-between pt-2 flex-wrap gap-2">
         <div className="flex space-x-1">
           <TooltipProvider>
             <Tooltip>
@@ -218,84 +217,92 @@ export default function NoteCard({ note, onDelete, onToggleFavorite }: NoteCardP
               <TooltipContent>Delete note</TooltipContent>
             </Tooltip>
           </TooltipProvider>
-
-          {/* Euron AI Summary Dialog */}
-          <Dialog open={summaryDialogOpen} onOpenChange={(open) => {
-            setSummaryDialogOpen(open);
-            if (!open) setSummary(null);
-          }}>
-            <DialogTrigger asChild>
-              <Button 
-                variant="outline"
-                size="sm"
-                className="gap-1"
-                onClick={() => setSummaryDialogOpen(true)}
-              >
-                <Sparkles className="h-4 w-4" />
-                Generate AI Summary
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-2xl max-w-[95vw] max-h-[80vh]">
-              <DialogHeader>
-                <DialogTitle>
-                  {summary ? "AI Summary" : "Euron API Key Required"}
-                </DialogTitle>
-                <DialogDescription>
-                  {summary ? 
-                    "Here's your AI-generated summary:" : 
-                    <>
-                      Enter your free Euron AI API key and click "Summarize" to generate an AI summary.<br />
-                      <span className="font-mono text-xs text-muted-foreground">Model: gpt-4.1-mini</span>
-                    </>
-                  }
-                </DialogDescription>
-              </DialogHeader>
-              
-              {!summary ? (
-                <div className="space-y-4 py-2">
-                  <Input 
-                    type="password"
-                    placeholder="Enter Euron API Key"
-                    value={euronApiKey}
-                    onChange={(e) => setEuronApiKey(e.target.value)}
-                    className="w-full"
-                    autoFocus
-                  />
-                  <Button
-                    variant="secondary"
-                    disabled={summaryLoading}
-                    onClick={handleGenerateSummary}
-                    className="w-full"
-                  >
-                    <Sparkles className="h-4 w-4 mr-1" />
-                    {summaryLoading ? "Summarizing..." : "Summarize"}
-                  </Button>
-                </div>
-              ) : (
-                <ScrollArea className="max-h-[60vh] mt-4">
-                  <div className="rounded bg-muted p-4 min-h-[12rem]">
-                    <p className="text-base whitespace-pre-line">{summary}</p>
-                  </div>
-                </ScrollArea>
-              )}
-              
-              <DialogFooter className="gap-2 mt-4">
-                {summary && (
-                  <Button onClick={handleSaveInTab} disabled={savingSummary}>
-                    <Save className="h-4 w-4 mr-1" />
-                    {savingSummary ? "Saving..." : "Save as new note"}
-                  </Button>
-                )}
-                <Button variant="outline" onClick={() => setSummaryDialogOpen(false)}>
-                  Close
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
         </div>
+
+        <Button 
+          variant="outline"
+          size="sm"
+          className="gap-1 mt-1"
+          onClick={() => setSummaryDialogOpen(true)}
+        >
+          <Sparkles className="h-4 w-4" />
+          Generate AI Summary
+        </Button>
+
+        {/* Euron AI Summary Dialog */}
+        <Dialog open={summaryDialogOpen} onOpenChange={(open) => {
+          setSummaryDialogOpen(open);
+          if (!open) setSummary(null);
+        }}>
+          <DialogTrigger asChild>
+            <Button 
+              variant="outline"
+              size="sm"
+              className="gap-1"
+              onClick={() => setSummaryDialogOpen(true)}
+            >
+              <Sparkles className="h-4 w-4" />
+              Generate AI Summary
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-2xl max-w-[95vw] max-h-[80vh]">
+            <DialogHeader>
+              <DialogTitle>
+                {summary ? "AI Summary" : "Euron API Key Required"}
+              </DialogTitle>
+              <DialogDescription>
+                {summary ? 
+                  "Here's your AI-generated summary:" : 
+                  <>
+                    Enter your free Euron AI API key and click "Summarize" to generate an AI summary.<br />
+                    <span className="font-mono text-xs text-muted-foreground">Model: gpt-4.1-mini</span>
+                  </>
+                }
+              </DialogDescription>
+            </DialogHeader>
+            
+            {!summary ? (
+              <div className="space-y-4 py-2">
+                <Input 
+                  type="password"
+                  placeholder="Enter Euron API Key"
+                  value={euronApiKey}
+                  onChange={(e) => setEuronApiKey(e.target.value)}
+                  className="w-full"
+                  autoFocus
+                />
+                <Button
+                  variant="secondary"
+                  disabled={summaryLoading}
+                  onClick={handleGenerateSummary}
+                  className="w-full"
+                >
+                  <Sparkles className="h-4 w-4 mr-1" />
+                  {summaryLoading ? "Summarizing..." : "Summarize"}
+                </Button>
+              </div>
+            ) : (
+              <ScrollArea className="max-h-[60vh] mt-4">
+                <div className="rounded bg-muted p-4 min-h-[12rem]">
+                  <p className="text-base whitespace-pre-line">{summary}</p>
+                </div>
+              </ScrollArea>
+            )}
+            
+            <DialogFooter className="gap-2 mt-4">
+              {summary && (
+                <Button onClick={handleSaveInTab} disabled={savingSummary}>
+                  <Save className="h-4 w-4 mr-1" />
+                  {savingSummary ? "Saving..." : "Save as new note"}
+                </Button>
+              )}
+              <Button variant="outline" onClick={() => setSummaryDialogOpen(false)}>
+                Close
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </CardFooter>
     </Card>
   );
 }
-
-// ... End of file. Consider refactoring if file grows further.
