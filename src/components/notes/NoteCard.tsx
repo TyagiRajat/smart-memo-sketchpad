@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { format } from 'date-fns';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,9 +13,7 @@ import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import { createNote } from '@/services/noteService';
 import { ScrollArea } from '@/components/ui/scroll-area';
-
-// === Euron API Key (safe to expose if it's a public key!) ===
-const EURON_API_KEY = "YOUR_EURON_PUBLISHABLE_API_KEY"; // <-- Put your real key here
+import { generateAiSummary, getEuronApiKey, setEuronApiKey } from '@/services/aiService';
 
 interface NoteCardProps {
   note: Note;
@@ -26,8 +25,7 @@ export default function NoteCard({ note, onDelete, onToggleFavorite }: NoteCardP
   const navigate = useNavigate();
   const [isHovered, setIsHovered] = useState(false);
 
-  // Remove API key/local input state
-  // const [euronApiKey, setEuronApiKey] = useState('');
+  const [euronApiKeyInput, setEuronApiKeyInput] = useState('');
   const [summary, setSummary] = useState<string | null>(null);
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [summaryDialogOpen, setSummaryDialogOpen] = useState(false);
@@ -43,51 +41,24 @@ export default function NoteCard({ note, onDelete, onToggleFavorite }: NoteCardP
 
   // Call Euron AI summarize endpoint
   const handleGenerateSummary = async () => {
-    // Use the hardcoded API key now
-    if (!EURON_API_KEY.trim()) {
-      toast.error("Euron API key not configured.");
+    // Check if we already have an API key stored
+    let apiKey = getEuronApiKey();
+    
+    // If we have an input value, use and store it
+    if (euronApiKeyInput.trim()) {
+      setEuronApiKey(euronApiKeyInput.trim());
+      apiKey = euronApiKeyInput.trim();
+    }
+    
+    if (!apiKey) {
+      toast.error("Please enter your Euron API key");
       return;
     }
+    
     setSummaryLoading(true);
     setSummary(null);
     try {
-      const response = await fetch('https://api.euron.one/api/v1/euri/alpha/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${EURON_API_KEY.trim()}`
-        },
-        body: JSON.stringify({
-          messages: [
-            {
-              role: "user",
-              content: `Summarize this text in 3-5 sentences. Respond ONLY with the summary:\n\n${note.content}`
-            }
-          ],
-          model: "gpt-4.1-mini",
-          max_tokens: 550,
-          temperature: 0.7
-        })
-      });
-
-      if (!response.ok) {
-        const text = await response.text();
-        console.error("Euron API error:", text);
-        throw new Error(`API error: ${response.status} ${text}`);
-      }
-      const data = await response.json();
-      // Try multiple possible output formats
-      let generatedSummary: string | null = null;
-      if (data.choices && data.choices[0]?.message?.content) {
-        generatedSummary = data.choices[0].message.content.trim();
-      } else if (data.summary) {
-        generatedSummary = data.summary.trim();
-      } else if (data.content) {
-        generatedSummary = data.content.trim();
-      }
-      if (!generatedSummary) {
-        throw new Error("No summary received from Euron AI");
-      }
+      const generatedSummary = await generateAiSummary(note.content);
       setSummary(generatedSummary);
       toast.success('Summary generated successfully!');
     } catch (err: any) {
@@ -223,7 +194,6 @@ export default function NoteCard({ note, onDelete, onToggleFavorite }: NoteCardP
           </TooltipProvider>
         </div>
 
-        {/* Only show one "Generate AI Summary" button, not duplicated */}
         <Button 
           variant="outline"
           size="sm"
@@ -241,19 +211,33 @@ export default function NoteCard({ note, onDelete, onToggleFavorite }: NoteCardP
           <DialogContent className="sm:max-w-2xl max-w-[95vw] max-h-[80vh]">
             <DialogHeader>
               <DialogTitle>
-                AI Summary
+                {summary ? "AI Summary" : "Euron API Key Required"}
               </DialogTitle>
               <DialogDescription>
-                {summary
-                  ? "Here's your AI-generated summary:"
-                  : <span className="font-mono text-xs text-muted-foreground">Model: gpt-4.1-mini</span>
+                {summary ? 
+                  "Here's your AI-generated summary:" : 
+                  <>
+                    {getEuronApiKey() ? 
+                      <span className="font-mono text-xs text-muted-foreground">Model: gpt-4.1-mini</span> : 
+                      "Enter your Euron AI API key and click \"Summarize\" to generate an AI summary."
+                    }
+                  </>
                 }
               </DialogDescription>
             </DialogHeader>
             
-            {/* No API key input, just show summary or loading */}
             {!summary ? (
               <div className="space-y-4 py-2">
+                {!getEuronApiKey() && (
+                  <Input 
+                    type="password"
+                    placeholder="Enter Euron API Key"
+                    value={euronApiKeyInput}
+                    onChange={(e) => setEuronApiKeyInput(e.target.value)}
+                    className="w-full"
+                    autoFocus
+                  />
+                )}
                 <Button
                   variant="secondary"
                   disabled={summaryLoading}
