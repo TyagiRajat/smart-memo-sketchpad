@@ -7,12 +7,14 @@ import { toast } from 'sonner';
  */
 export async function generateAiSummary(text: string): Promise<string> {
   try {
-    // Get the base URL - for production this should use SUPABASE_URL environment variable
-    // For local development, we can use a relative path which gets proxied
+    // Get your actual Supabase project URL - you need to set this in your environment variables
+    // Replace this with your actual Supabase project URL from your Supabase dashboard
     const SUPABASE_FUNCTION_URL = import.meta.env.VITE_SUPABASE_URL 
       ? `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-summary`
-      : 'https://YOUR_SUPABASE_PROJECT_ID.supabase.co/functions/v1/generate-summary';
+      : '/api/generate-summary'; // Fallback to relative path for development
 
+    console.log("Calling Supabase function at:", SUPABASE_FUNCTION_URL);
+    
     const response = await fetch(SUPABASE_FUNCTION_URL, {
       method: 'POST',
       headers: {
@@ -44,7 +46,9 @@ export async function generateAiSummary(text: string): Promise<string> {
     throw new Error("No summary received from AI service");
   } catch (error: any) {
     console.error('Error generating summary:', error);
-    throw new Error(`Failed to generate summary: ${error.message}`);
+    
+    // Fallback to local summarization
+    return await summarizeText(text);
   }
 }
 
@@ -85,12 +89,8 @@ export async function summarizeText(text: string): Promise<string> {
       }
     }
     
-    // Prepend a label only if we're in development mode
-    if (import.meta.env.DEV) {
-      return `Summary: ${summary}`;
-    }
-    
-    return summary;
+    // Add a fallback notice
+    return `[Local Summary] ${summary}`;
   } catch (error) {
     console.error('AI summarization error:', error);
     toast.error('Failed to generate summary. Please try again later.');
