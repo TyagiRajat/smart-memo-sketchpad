@@ -1,15 +1,24 @@
+
 import { toast } from 'sonner';
 
 /**
- * Generate an AI summary of the provided text using a proxied Euron API
+ * Generate an AI summary of the provided text using a Supabase Edge Function
  * The actual API key is stored securely in Supabase Edge Function Secrets
  */
 export async function generateAiSummary(text: string): Promise<string> {
   try {
-    const response = await fetch('/api/generate-summary', {
+    // Get the base URL - for production this should use SUPABASE_URL environment variable
+    // For local development, we can use a relative path which gets proxied
+    const SUPABASE_FUNCTION_URL = import.meta.env.VITE_SUPABASE_URL 
+      ? `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-summary`
+      : 'https://YOUR_SUPABASE_PROJECT_ID.supabase.co/functions/v1/generate-summary';
+
+    const response = await fetch(SUPABASE_FUNCTION_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        // If you have anon key for authorization on your function
+        // 'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
       },
       body: JSON.stringify({
         text
